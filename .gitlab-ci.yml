@@ -1,0 +1,94 @@
+variables:
+  SERVICE_NAME: scheduling-report-worker
+  SERVICE_CODE: "031"
+  GCP_PROJECT_ID: finnet-artifact-cde
+  GCP_REGION: asia-southeast2
+  GCP_ARTIFACT_REPO: finnet-cde-repo
+  IMAGE_NAME: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REPO}/${SERVICE_NAME}
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+  GIT_DEPTH: "0"
+
+stages:
+  - static-analysis
+  - build
+  - deploy
+
+sonarqube-check:
+  stage: static-analysis
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - sonar-scanner
+  allow_failure: true
+  only:
+    - dev
+    - master
+
+build-push-image:
+  stage: build
+  image: google/cloud-sdk:alpine
+  services:
+    - docker:dind
+  before_script:
+    - echo $GCP_SERVICE_ACCOUNT_KEY | base64 -d > ${HOME}/gcloud-service-key.json
+    - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+    - gcloud config set project $GCP_PROJECT_ID
+    - gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev
+  script:
+    - export IMAGE_TAG="${CI_COMMIT_SHORT_SHA}"
+    - export FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
+    - docker build -t ${FULL_IMAGE_NAME} .
+    - docker push ${FULL_IMAGE_NAME}
+    - echo "IMAGE_TAG=${IMAGE_TAG}" > build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+  only:
+    - dev
+    - master
+
+deploy-to-dev:
+  stage: deploy
+  image: google/cloud-sdk:alpine
+  before_script:
+    - echo $GCP_SERVICE_ACCOUNT_KEY | base64 -d > ${HOME}/gcloud-service-key.json
+    - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+    - gcloud config set project $GCP_PROJECT_ID
+    - gcloud container clusters get-credentials finnet-dev-cluster --region=asia-southeast2
+    - curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+  script:
+    - export IMAGE_TAG="${CI_COMMIT_SHORT_SHA}"
+    - |
+      helm upgrade --install ${SERVICE_NAME} ./helm \
+        -f ./helm/${SERVICE_NAME}-dev.yaml \
+        --set image.tag=${IMAGE_TAG} \
+        --namespace finpay-cde \
+        --create-namespace
+  only:
+    - dev
+
+deploy-to-prod:
+  stage: deploy
+  image: google/cloud-sdk:alpine
+  before_script:
+    - echo $GCP_SERVICE_ACCOUNT_KEY | base64 -d > ${HOME}/gcloud-service-key.json
+    - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+    - gcloud config set project $GCP_PROJECT_ID
+    - gcloud container clusters get-credentials finnet-prod-cluster --region=asia-southeast2
+    - curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+  script:
+    - export IMAGE_TAG="${CI_COMMIT_SHORT_SHA}"
+    - |
+      helm upgrade --install ${SERVICE_NAME} ./helm \
+        -f ./helm/${SERVICE_NAME}-prod.yaml \
+        --set image.tag=${IMAGE_TAG} \
+        --namespace finpay-cde \
+        --create-namespace
+  only:
+    - master
+  when: manual

@@ -1,0 +1,55 @@
+# Development environment values for scheduling-report-worker
+appName: "scheduling-report-worker"
+fullnameOverride: "scheduling-report-worker"
+namespace: "finpay-cde"
+replicaCount: 1
+
+image:
+  repository: "asia-southeast2-docker.pkg.dev/finnet-artifact-cde/finnet-cde-repo/scheduling-report-worker"
+  pullPolicy: "Always"
+
+imagePullSecrets: []
+nameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  sidecar.istio.io/proxyCPU: "0"
+  sidecar.istio.io/proxyMemory: "0"
+  sidecar.istio.io/rewriteAppHTTPProbers: "true"
+
+podSecurityContext: {}
+
+securityContext:
+  readOnlyRootFilesystem: false
+
+# No service needed for worker (no HTTP endpoints)
+service:
+  enabled: false
+
+# No ingress needed for worker
+ingress:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
