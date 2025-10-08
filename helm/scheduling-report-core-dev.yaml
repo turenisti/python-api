@@ -1,11 +1,11 @@
-# Production environment values for scheduling-report-worker
-appName: "scheduling-report-worker"
-fullnameOverride: "scheduling-report-worker"
+# Development environment values for scheduling-report-core
+appName: "scheduling-report-core"
+fullnameOverride: "scheduling-report-core"
 namespace: "finpay-cde"
-replicaCount: 2
+replicaCount: 1
 
 image:
-  repository: "asia-southeast2-docker.pkg.dev/finnet-artifact-cde/finnet-cde-repo/scheduling-report-worker"
+  repository: "asia-southeast2-docker.pkg.dev/finnet-artifact-cde/finnet-cde-repo/scheduling-report-core"
   pullPolicy: "Always"
 
 imagePullSecrets: []
@@ -35,19 +35,12 @@ ingress:
   enabled: false
 
 resources:
-  limits:
-    cpu: 2000m
-    memory: 4Gi
-  requests:
-    cpu: 1000m
-    memory: 2Gi
 
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
   targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
 
 nodeSelector: {}
 

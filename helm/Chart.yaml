@@ -1,5 +1,5 @@
 apiVersion: v2
-name: scheduling-report-worker
+name: scheduling-report-core
 description: Scheduling Report Core - Python Kafka Consumer
 
 type: application
