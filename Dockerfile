@@ -23,10 +23,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install runtime dependencies only
+# Install runtime dependencies and timezone data
 RUN apt-get update && apt-get install -y \
     libmariadb3 \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# Set timezone to Asia/Jakarta
+ENV TZ=Asia/Jakarta
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Copy Python packages from builder
 COPY --from=builder /root/.local /root/.local
