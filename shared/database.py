@@ -6,12 +6,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Database configuration
-DB_HOST = os.getenv('DB_HOST', '10.218.0.6')
-DB_PORT = os.getenv('DB_PORT', '3306')
-DB_USER = os.getenv('DB_USER', 'user_arif')
-DB_PASSWORD = os.getenv('DB_PASSWORD', 'Masarif_2092')
-DB_NAME = os.getenv('DB_NAME', 'finpaycde')
+# Database configuration (required from environment)
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_NAME = os.getenv('DB_NAME')
+
+# Validate required environment variables
+if not all([DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME]):
+    raise ValueError(
+        "Missing required database environment variables. "
+        "Please set DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, and DB_NAME"
+    )
 
 # Create database URL
 DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
