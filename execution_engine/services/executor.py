@@ -165,7 +165,8 @@ async def execute_report(
             # STEP 5: Execute query
             log_with_context(logger, 'info', 'Executing database query',
                            execution_id=execution_id, config_id=config_id,
-                           datasource=datasource.name, db_type=datasource.db_type, stage='query_executing')
+                           datasource=datasource.name, db_type=datasource.db_type,
+                           query=final_query, stage='query_executing')
 
             query_start = now_jakarta()
 

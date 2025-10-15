@@ -32,6 +32,8 @@ class StructuredFormatter(logging.Formatter):
             log_data['rows'] = record.rows
         if hasattr(record, 'stage'):
             log_data['stage'] = record.stage
+        if hasattr(record, 'query'):
+            log_data['query'] = record.query
 
         # Add exception info if present
         if record.exc_info:
@@ -81,6 +83,8 @@ class ConsoleFormatter(logging.Formatter):
             log_parts.append(f"{self.CYAN}rows={self.RESET}{record.rows}")
         if hasattr(record, 'stage'):
             log_parts.append(f"{self.CYAN}stage={self.RESET}{record.stage}")
+        if hasattr(record, 'query'):
+            log_parts.append(f"{self.CYAN}query={self.RESET}{record.query}")
 
         # Add exception if present
         if record.exc_info:
