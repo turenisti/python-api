@@ -112,6 +112,28 @@ async def execute_report(
 
             time_range = calculate_time_range(schedule, execution_start)
 
+            # STEP 3b: Extract filter values to use as template variables in email
+            # This allows using {{merchant_id}}, {{status}}, etc. in email subject/body
+            filter_variables = {}
+            if config.parameters and isinstance(config.parameters, dict):
+                filters_config = config.parameters.get('filters', [])
+                for filter_def in filters_config:
+                    field = filter_def.get('field')
+                    value = filter_def.get('value')
+                    if field and value is not None:
+                        # Extract field name (remove table prefix if exists)
+                        # e.g., "ipg_trx_master.merchant_id" -> "merchant_id"
+                        field_name = field.split('.')[-1] if '.' in field else field
+
+                        # Convert value to string (handle lists for IN operator)
+                        if isinstance(value, list):
+                            filter_variables[field_name] = ', '.join(str(v) for v in value)
+                        else:
+                            filter_variables[field_name] = str(value)
+
+            # Merge filter variables into time_range for template replacement
+            time_range.update(filter_variables)
+
             # STEP 4: Build query with auto date filter and static filters
             base_query = config.report_query
 
