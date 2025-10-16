@@ -22,7 +22,8 @@ def send_email_via_mailgun(
     subject: str,
     body: str,
     file_path: str,
-    file_name: str
+    file_name: str,
+    body_html: str = None
 ) -> Dict:
     """
     Send email via Mailgun API with attachment
@@ -33,6 +34,7 @@ def send_email_via_mailgun(
         body: Email body (plain text)
         file_path: Path to file to attach
         file_name: Name of attachment file
+        body_html: Optional HTML body for rich email
 
     Returns:
         dict: Mailgun API response
@@ -49,6 +51,10 @@ def send_email_via_mailgun(
             "subject": subject,
             "text": body
         }
+
+        # Add HTML body if provided
+        if body_html:
+            data["html"] = body_html
 
         response = requests.post(
             url,
@@ -116,10 +122,12 @@ def deliver_via_email(
         # Build email subject and body with template variables
         subject_template = email_config.get('subject', f'Report: {config.report_name}')
         body_template = email_config.get('body', f'Please find attached report: {config.report_name}')
+        body_html_template = email_config.get('body_html', None)
 
         # Replace template variables using our template engine
         subject = replace_template_variables(subject_template, time_range)
         body = replace_template_variables(body_template, time_range)
+        body_html = replace_template_variables(body_html_template, time_range) if body_html_template else None
 
         # Get file name
         file_name = os.path.basename(file_path)
@@ -140,7 +148,8 @@ def deliver_via_email(
                     subject=subject,
                     body=body,
                     file_path=file_path,
-                    file_name=file_name
+                    file_name=file_name,
+                    body_html=body_html
                 )
 
                 # Success - update log
