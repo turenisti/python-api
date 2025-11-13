@@ -20,6 +20,7 @@ from execution_engine.services.query_builder import apply_filters_to_query, buil
 from execution_engine.connectors.mysql_connector import execute_query
 from execution_engine.services.format_converter import convert_to_format, get_file_size
 from execution_engine.deliverers.mailgun_deliverer import deliver_via_email
+from execution_engine.deliverers.sftp_deliverer import deliver_via_sftp
 
 REPORT_OUTPUT_PATH = os.getenv('REPORT_OUTPUT_PATH', '/tmp/reports')
 
@@ -264,6 +265,17 @@ async def execute_report(
             for delivery in deliveries:
                 if delivery.method == 'email':
                     deliver_via_email(
+                        db=db,  # Pass the shared database session
+                        delivery=delivery,
+                        file_path=output_path,
+                        execution_id=execution_id,
+                        config=config,
+                        time_range=time_range,
+                        schedule_id=schedule_id
+                    )
+                    delivery_count += 1
+                elif delivery.method == 'sftp':
+                    deliver_via_sftp(
                         db=db,  # Pass the shared database session
                         delivery=delivery,
                         file_path=output_path,
