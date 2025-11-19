@@ -50,6 +50,16 @@ def process_execution_request(message_data: dict):
                      execution_id=execution_id, config_id=config_id,
                      schedule_id=schedule_id, executed_by=executed_by)
 
+    # IDEMPOTENCY CHECK: Prevent duplicate processing
+    from shared.database import get_db_session
+    from shared.models import ReportExecution
+
+    with get_db_session() as db:
+        existing = db.query(ReportExecution).filter_by(id=execution_id).first()
+        if existing and existing.status == 'completed':
+            logger.warning(f"⚠️ Execution {execution_id} already completed - skipping duplicate")
+            return {'status': 'skipped', 'reason': 'already_completed', 'execution_id': execution_id}
+
     try:
         # Execute report asynchronously
         result = asyncio.run(execute_report(
@@ -73,23 +83,44 @@ def process_execution_request(message_data: dict):
 
 
 def main():
-    """Main worker loop"""
-    logger.info("=" * 80)
-    logger.info("🚀 Starting Report Execution Worker")
-    logger.info("=" * 80)
+    """Main worker loop with auto-restart on crash"""
+    import time
 
-    try:
-        # Initialize Kafka consumer
-        consumer = ReportKafkaConsumer()
+    max_retries = 5
+    retry_count = 0
+    retry_delay = 5  # seconds
 
-        # Start consuming messages
-        consumer.consume(process_execution_request)
+    while retry_count < max_retries:
+        try:
+            logger.info("=" * 80)
+            logger.info(f"🚀 Starting Report Execution Worker (attempt {retry_count + 1}/{max_retries})")
+            logger.info("=" * 80)
 
-    except KeyboardInterrupt:
-        logger.info("\n🛑 Worker stopped by user")
-    except Exception as e:
-        logger.error(f"❌ Worker failed: {e}", exc_info=True)
-        sys.exit(1)
+            # Initialize Kafka consumer
+            consumer = ReportKafkaConsumer()
+
+            # Start consuming messages
+            consumer.consume(process_execution_request)
+
+            # If we get here normally (KeyboardInterrupt), exit cleanly
+            break
+
+        except KeyboardInterrupt:
+            logger.info("\n🛑 Worker stopped by user")
+            break
+
+        except Exception as e:
+            retry_count += 1
+            logger.error(f"❌ Worker crashed: {e}", exc_info=True)
+
+            if retry_count < max_retries:
+                logger.warning(f"⚠️ Restarting worker in {retry_delay}s... (attempt {retry_count + 1}/{max_retries})")
+                time.sleep(retry_delay)
+                # Increase retry delay exponentially
+                retry_delay = min(retry_delay * 2, 60)  # Max 60s delay
+            else:
+                logger.error(f"❌ Max retries ({max_retries}) reached. Worker stopping.")
+                sys.exit(1)
 
 
 if __name__ == "__main__":

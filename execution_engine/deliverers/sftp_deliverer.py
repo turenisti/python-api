@@ -265,16 +265,23 @@ def deliver_via_sftp(
         # Get file size
         file_size = os.path.getsize(file_path)
 
-        # Retry logic
+        # Retry logic - shorter intervals for SFTP (seconds not minutes)
         max_retry = delivery.max_retry or 3
-        retry_interval = delivery.retry_interval_minutes or 5
+        retry_interval = delivery.retry_interval_minutes or 2  # Now treated as seconds
 
+        # Overall timeout to prevent hanging (10 seconds max)
+        overall_timeout = 10  # seconds
         last_error = None
         send_start = now_jakarta()
 
         for attempt in range(1, max_retry + 1):
+            # Check overall timeout
+            elapsed = (now_jakarta() - send_start).total_seconds()
+            if elapsed >= overall_timeout:
+                raise TimeoutError(f"SFTP delivery timeout after {elapsed:.1f}s (max {overall_timeout}s)")
+
             try:
-                # Upload via SFTP
+                # Upload via SFTP with short timeout (10s)
                 upload_result = upload_file_via_sftp(
                     host=host,
                     port=port,
@@ -284,7 +291,7 @@ def deliver_via_sftp(
                     local_file_path=file_path,
                     filename=remote_filename,
                     create_directory=create_directory,
-                    timeout=timeout
+                    timeout=10  # 10 second connection timeout
                 )
 
                 # Success - update log
@@ -315,8 +322,8 @@ def deliver_via_sftp(
                 last_error = str(e)
 
                 if attempt < max_retry:
-                    # Wait before retry (exponential backoff)
-                    wait_seconds = retry_interval * 60 * attempt
+                    # Wait before retry (short intervals in seconds)
+                    wait_seconds = retry_interval * attempt
                     time.sleep(wait_seconds)
                     continue
                 else:

@@ -37,9 +37,9 @@ class ReportKafkaConsumer:
                 'enable_auto_commit': False,  # Manual commit for reliability
                 # Performance & reliability settings
                 'max_poll_records': 10,  # Process max 10 messages per poll
-                'max_poll_interval_ms': 600000,  # 10 minutes - max time between polls
-                'session_timeout_ms': 30000,  # 30 seconds - heartbeat timeout
-                'heartbeat_interval_ms': 10000,  # 10 seconds - send heartbeat every 10s
+                'max_poll_interval_ms': 900000,  # 15 minutes - max time between polls
+                'session_timeout_ms': 120000,  # 2 minutes - heartbeat timeout (increased for long processing)
+                'heartbeat_interval_ms': 30000,  # 30 seconds - send heartbeat every 30s
                 'fetch_min_bytes': 1,  # Don't wait for minimum bytes
                 'fetch_max_wait_ms': 500,  # Max wait 500ms for new messages
             }
@@ -109,13 +109,16 @@ class ReportKafkaConsumer:
                 except Exception as e:
                     logger.error(f"❌ [{message_count}] Error processing message: {e}", exc_info=True)
 
-                    # For critical errors, commit offset to skip bad message
-                    # This prevents infinite retries on permanently broken messages
-                    if "not found" in str(e).lower() or "invalid" in str(e).lower():
-                        logger.warning(f"⚠️ Skipping bad message and committing offset to prevent infinite retry")
+                    # ALWAYS commit offset to skip message and prevent infinite retries
+                    # Failed executions are already logged in report_executions table
+                    # We don't want consumer to crash or retry indefinitely
+                    logger.warning(f"⚠️ Committing offset to skip failed message and continue processing queue")
+                    try:
                         self.consumer.commit()
-                    else:
-                        logger.warning(f"⚠️ Message will be retried on next consumer restart")
+                        logger.info(f"✅ [{message_count}] Offset committed despite error")
+                    except Exception as commit_error:
+                        logger.error(f"❌ Failed to commit offset: {commit_error}")
+                        # If commit fails, consumer might be disconnected - will restart
 
         except KeyboardInterrupt:
             logger.info("🛑 Consumer interrupted by user")
