@@ -22,8 +22,11 @@ from execution_engine.services.format_converter import convert_to_format, get_fi
 from execution_engine.deliverers.mailgun_deliverer import deliver_via_email
 from execution_engine.deliverers.sftp_deliverer import deliver_via_sftp
 
-# Secure path handling - validate and sanitize output directory
-_configured_path = os.getenv('REPORT_OUTPUT_PATH', '/tmp/reports')
+# Secure path handling - REQUIRED environment variable
+_configured_path = os.getenv('REPORT_OUTPUT_PATH')
+if not _configured_path:
+    raise RuntimeError("REPORT_OUTPUT_PATH environment variable is required but not set")
+
 REPORT_OUTPUT_PATH = os.path.abspath(_configured_path)
 
 # Ensure the directory exists and is writable
