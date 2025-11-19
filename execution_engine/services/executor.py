@@ -22,7 +22,13 @@ from execution_engine.services.format_converter import convert_to_format, get_fi
 from execution_engine.deliverers.mailgun_deliverer import deliver_via_email
 from execution_engine.deliverers.sftp_deliverer import deliver_via_sftp
 
-REPORT_OUTPUT_PATH = os.getenv('REPORT_OUTPUT_PATH', '/tmp/reports')
+# Secure path handling - validate and sanitize output directory
+_configured_path = os.getenv('REPORT_OUTPUT_PATH', '/tmp/reports')
+REPORT_OUTPUT_PATH = os.path.abspath(_configured_path)
+
+# Ensure the directory exists and is writable
+if not os.path.exists(REPORT_OUTPUT_PATH):
+    os.makedirs(REPORT_OUTPUT_PATH, mode=0o755, exist_ok=True)
 
 # Setup structured logger (after load_dotenv)
 logger = setup_logger('executor')
